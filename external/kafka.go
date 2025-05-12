@@ -35,7 +35,7 @@ func createSecureDialer(config *config.Config) (*kafka.Dialer, error) {
 	}, nil
 }
 
-func NewKafkaReader(config *config.Config, processor processor.Processor, logger *logger.StandardLogger, pool service.Pool) (*Consumer, error) {
+func NewKafkaConsumer(config *config.Config, processor processor.Processor, logger *logger.StandardLogger, pool service.Pool) (*Consumer, error) {
 	dialer, err := createSecureDialer(config)
 	if err != nil {
 		return nil, err
@@ -45,8 +45,7 @@ func NewKafkaReader(config *config.Config, processor processor.Processor, logger
 	if err != nil {
 		return nil, err
 	}
-
-	_ = conn.Close()
+	defer conn.Close()
 
 	reader := kafka.NewReader(kafka.ReaderConfig{
 		Brokers:         config.Kafka.Brokers,
@@ -72,33 +71,39 @@ func NewKafkaReader(config *config.Config, processor processor.Processor, logger
 	}, nil
 }
 
+func (c *Consumer) processMessage(msg kafka.Message) {
+	c.logger.Printf("Processing message from topic=%s",
+		msg.Topic)
+	c.processor.Process(msg.Value, msg.Topic, msg.Key)
+}
+
+func (c *Consumer) readMessages(ctx context.Context) {
+	for {
+		readCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+		msg, err := c.reader.ReadMessage(readCtx)
+		cancel()
+
+		if err != nil {
+			if strings.Contains(err.Error(), "EOF") || strings.Contains(err.Error(), "context deadline exceeded") {
+				time.Sleep(time.Second)
+				continue
+			}
+			c.logger.Printf("Error reading message: %v", err)
+			continue
+		}
+
+		// Sử dụng pool để xử lý message
+		c.pool.Submit(func(ctx context.Context) {
+			c.processMessage(msg)
+		})
+	}
+}
+
 func RunConsumer(lc fx.Lifecycle, c *Consumer) {
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
 			c.pool.Start()
-			go func() {
-				for {
-					readCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
-					msg, err := c.reader.ReadMessage(readCtx)
-					cancel()
-
-					if err != nil {
-						if strings.Contains(err.Error(), "EOF") ||
-							strings.Contains(err.Error(), "context deadline exceeded") {
-							time.Sleep(time.Second)
-							continue
-						}
-						c.logger.Printf("Error reading message: %v", err)
-						continue
-					}
-
-					c.pool.Submit(func(ctx context.Context) {
-						c.logger.Printf("Processing message from topic=%s partition=%d offset=%d key=%s",
-							msg.Topic, msg.Partition, msg.Offset, string(msg.Key))
-						c.processor.Process(msg.Value, msg.Topic, msg.Key)
-					})
-				}
-			}()
+			go c.readMessages(ctx)
 			return nil
 		},
 		OnStop: func(ctx context.Context) error {
