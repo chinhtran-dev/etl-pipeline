@@ -1,0 +1,9 @@
+packages:
+  - path: ./internal/service #Replace real path
+    output: ./internal/mock #Replace real output
+    case: snake
+    all: true
+  - path: ./internal/repository
+    output: ./internal/mock
+    case: snake
+    all: true
