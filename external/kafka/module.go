@@ -5,8 +5,8 @@ import (
 )
 
 var Module = fx.Options(
-	fx.Provide(NewKafkaConsumer),
 	fx.Provide(NewPool),
+	fx.Provide(NewKafkaConsumer),
 
 	fx.Invoke(RunConsumer),
 )

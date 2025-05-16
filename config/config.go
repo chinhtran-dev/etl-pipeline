@@ -36,7 +36,7 @@ type KafkaConfig struct {
 type EnvironmentConfig struct {
 	Env         string `envconfig:"ENVIRONMENT" default:"development"`
 	NumWorkers  int    `envconfig:"NUM_WORKERS" default:"10"`
-	TopicPrefix string `envconfig:"TOPIC_CONFIG" required:"true"`
+	TopicPrefix string `envconfig:"TOPIC_PREFIX" required:"true"`
 }
 
 func NewConfig() (*Config, error) {

@@ -11,63 +11,65 @@ import (
 )
 
 type Processor interface {
-	Process(data []byte, topic string, key []byte)
+	Process(data []byte, topic string, key []byte) error
 }
 
 type processor struct {
-	logger    logger.Logger
-	extract   extract.Extract
-	transform transform.Transform
-	load      load.Loader
+	Logger    logger.Logger
+	Extract   extract.Extract
+	Transform transform.Transform
+	Load      load.Loader
 }
 
 type ProcessorParams struct {
 	fx.In
 	Logger    logger.Logger
-	extract   extract.Extract
-	transform transform.Transform
-	load      load.Loader
+	Extract   extract.Extract
+	Transform transform.Transform
+	Load      load.Loader
 }
 
 func NewProcessor(params ProcessorParams) Processor {
 	return &processor{
-		logger:    params.Logger,
-		extract:   params.extract,
-		transform: params.transform,
-		load:      params.load,
+		Logger:    params.Logger,
+		Extract:   params.Extract,
+		Transform: params.Transform,
+		Load:      params.Load,
 	}
 }
 
-func (p *processor) Process(data []byte, topic string, key []byte) {
-	tenantID, err := p.extract.ExtractTenantId(topic)
+func (p *processor) Process(data []byte, topic string, key []byte) error {
+	tenantID, err := p.Extract.ExtractTenantId(topic)
 	if err != nil {
-		p.logger.Error("Failed to extract")
+		p.Logger.Error("Failed to extract")
 	}
 
-	deviceID := p.extract.ExtractDeviceId(key)
+	deviceID := p.Extract.ExtractDeviceId(key)
 
-	timestamp, transformedData, err := p.transform.Transform(data)
+	timestamp, transformedData, err := p.Transform.Transform(data)
 	if err != nil {
-		p.logger.Error("Failed to transform data",
+		p.Logger.Error("Failed to transform data",
 			zap.Error(err),
 			zap.String("tenantID", tenantID),
 			zap.String("deviceID", deviceID))
-		return
+		return err
 	}
 
-	p.logger.Info("Processing message",
+	p.Logger.Info("Processing message",
 		zap.Any("transformedData", transformedData),
 		zap.String("tenantID", tenantID),
 		zap.String("deviceID", deviceID))
 
-	err = p.load.Load(tenantID, deviceID, timestamp, transformedData)
+	err = p.Load.Load(tenantID, deviceID, timestamp, transformedData)
 	if err != nil {
-		p.logger.Error("Error load data",
+		p.Logger.Error("Error load data",
 			zap.Any("error", err))
-		return
+		return err
 	}
 
-	p.logger.Info("Message inserted",
+	p.Logger.Info("Message inserted",
 		zap.String("tenantID", tenantID),
 		zap.String("deviceID", deviceID))
+
+	return nil
 }
