@@ -1,29 +1,23 @@
-package processor
+package transform
 
 import (
 	"encoding/json"
 	"errors"
-	"strings"
+	"etl-pipeline/pkg/util"
 	"time"
 )
 
-type RawData struct {
+type rawData struct {
 	Timestamp time.Time       `json:"timestamp"`
 	Data      json.RawMessage `json:"data"`
 }
 
-func toCamelCase(s string) string {
-	parts := strings.Split(s, "_")
-	for i := 1; i < len(parts); i++ {
-		if len(parts[i]) > 0 {
-			parts[i] = strings.ToUpper(parts[i][:1]) + parts[i][1:]
-		}
-	}
-	return strings.Join(parts, "")
+type transform struct {
 }
 
-func transform(input []byte) (time.Time, map[string]interface{}, error) {
-	var raw RawData
+// transform implements Transform.
+func (t *transform) Transform(input []byte) (time.Time, map[string]interface{}, error) {
+	var raw rawData
 	if err := json.Unmarshal(input, &raw); err != nil {
 		return time.Time{}, nil, errors.New("failed to unmarshal RawData: " + err.Error())
 	}
@@ -46,7 +40,7 @@ func transform(input []byte) (time.Time, map[string]interface{}, error) {
 		if v == nil {
 			continue
 		}
-		result[toCamelCase(k)] = v
+		result[util.ToCamelCase(k)] = v
 	}
 
 	if len(result) == 0 {
@@ -54,4 +48,12 @@ func transform(input []byte) (time.Time, map[string]interface{}, error) {
 	}
 
 	return raw.Timestamp, result, nil
+}
+
+type Transform interface {
+	Transform(input []byte) (time.Time, map[string]interface{}, error)
+}
+
+func NewTransform() Transform {
+	return &transform{}
 }

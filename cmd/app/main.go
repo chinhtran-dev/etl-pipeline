@@ -2,7 +2,7 @@ package main
 
 import (
 	"etl-pipeline/config"
-	"etl-pipeline/external"
+	kakfa "etl-pipeline/external/kafka"
 	"etl-pipeline/internal/app"
 	"etl-pipeline/pkg/database"
 	"etl-pipeline/pkg/logger"
@@ -16,8 +16,8 @@ func main() {
 		database.Module,
 		app.Module,
 		logger.Module,
-		external.Module,
+		kakfa.Module,
 
-		fx.Invoke(external.RunConsumer),
+		fx.Invoke(kakfa.RunConsumer),
 	).Run()
 }

@@ -1,4 +1,4 @@
-package external
+package kakfa
 
 import (
 	"go.uber.org/fx"
@@ -6,4 +6,5 @@ import (
 
 var Module = fx.Options(
 	fx.Provide(NewKafkaConsumer),
+	fx.Provide(NewPool),
 )

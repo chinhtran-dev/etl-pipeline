@@ -1,7 +1,21 @@
-.PHONY: swagger-init swagger-build build run test install-tools lint format init
+.PHONY: swagger-init swagger-build build run test install-tools lint format init clean help
 
 MOCK_OUTPUT_DIR=internal/mock
 MOCK_CASE=snake
+
+help:
+	@echo "Available commands:"
+	@echo "  install-tools    - Install required tools"
+	@echo "  swagger-init     - Initialize Swagger documentation"
+	@echo "  swagger-build    - Build Swagger documentation"
+	@echo "  init             - Initialize the project"
+	@echo "  build            - Build the application"
+	@echo "  run              - Run the application"
+	@echo "  test             - Run tests"
+	@echo "  fmt              - Format code"
+	@echo "  lint             - Lint code"
+	@echo "  generate-mocks   - Generate mocks"
+	@echo "  clean            - Clean build artifacts"
 
 install-tools:
 	@echo "Installing required tools..."
@@ -39,3 +53,6 @@ lint:
 
 generate-mocks:
 	mockery
+
+clean:
+	rm -rf bin/

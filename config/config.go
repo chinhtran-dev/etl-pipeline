@@ -14,7 +14,6 @@ type Config struct {
 	DB          DBConfig
 	Kafka       KafkaConfig
 	Environment EnvironmentConfig
-	Worker      WorkerConfig
 }
 
 type DBConfig struct {
@@ -34,12 +33,10 @@ type KafkaConfig struct {
 	Password string   `envconfig:"KAFKA_PASSWORD" required:"true"`
 }
 
-type WorkerConfig struct {
-	NumWorkers int `envconfig:"NUM_WORKERS" default:"10"`
-}
-
 type EnvironmentConfig struct {
-	Env string `envconfig:"ENVIRONMENT" default:"development"`
+	Env         string `envconfig:"ENVIRONMENT" default:"development"`
+	NumWorkers  int    `envconfig:"NUM_WORKERS" default:"10"`
+	TopicPrefix string `envconfig:"TOPIC_CONFIG" required:"true"`
 }
 
 func NewConfig() (*Config, error) {
@@ -55,9 +52,6 @@ func NewConfig() (*Config, error) {
 	}
 	if err := envconfig.Process("", &cfg.Environment); err != nil {
 		log.Fatalf("Failed to process Environment config: %v", err)
-	}
-	if err := envconfig.Process("", &cfg.Worker); err != nil {
-		log.Fatalf("Failed to process Worker config: %v", err)
 	}
 
 	return &cfg, nil

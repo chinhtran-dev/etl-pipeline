@@ -1,7 +1,15 @@
 package service
 
-import "go.uber.org/fx"
+import (
+	"etl-pipeline/internal/service/extract"
+	"etl-pipeline/internal/service/load"
+	"etl-pipeline/internal/service/transform"
+
+	"go.uber.org/fx"
+)
 
 var Module = fx.Options(
-	fx.Provide(NewPool),
+	fx.Provide(extract.NewExtract),
+	fx.Provide(transform.NewTransform),
+	fx.Provide(load.NewLoad),
 )

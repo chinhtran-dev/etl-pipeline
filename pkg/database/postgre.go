@@ -12,7 +12,7 @@ import (
 	"go.uber.org/fx"
 )
 
-func NewDatabase(lc fx.Lifecycle, config *config.Config, log *loggerCustom.StandardLogger) (*pgxpool.Pool, error) {
+func NewDatabase(lc fx.Lifecycle, config *config.Config, log loggerCustom.Logger) (*pgxpool.Pool, error) {
 	dsn := fmt.Sprintf(
 		"postgres://%s:%s@%s:%s/%s?sslmode=%s",
 		config.DB.User,

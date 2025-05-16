@@ -1,4 +1,4 @@
-package service
+package kakfa
 
 import (
 	"context"
@@ -25,7 +25,7 @@ type pool struct {
 func NewPool(config *config.Config) Pool {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &pool{
-		numberWorker: config.Worker.NumWorkers,
+		numberWorker: config.Environment.NumWorkers,
 		tasks:        make(chan Task, 1000),
 		ctx:          ctx,
 		cancel:       cancel,

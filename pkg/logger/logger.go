@@ -4,144 +4,124 @@ import (
 	"context"
 	"errors"
 	"math"
-	"os"
 
 	"etl-pipeline/config"
 	"etl-pipeline/pkg/constant"
 
-	"github.com/sirupsen/logrus"
 	"go.uber.org/fx"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 var Module = fx.Options(
 	fx.Provide(NewLogger),
 )
 
-type StandardLogger struct {
-	*logrus.Logger
+type Logger interface {
+	WithField(key string, value interface{}) Logger
+	WithFields(fields map[string]interface{}) Logger
+	WithError(err error) Logger
+	WithErrorStr(errStr string) Logger
+	WithContext(ctx context.Context) Logger
+	WithInput(input interface{}) Logger
+	WithOutput(output interface{}) Logger
+	WithResponseTime(responseTime float64) Logger
+	WithKeyword(keyword string) Logger
+	WithURL(url string) Logger
+	WithStatusCode(code int) Logger
+
+	Debug(msg string, fields ...zap.Field)
+	Info(msg string, fields ...zap.Field)
+	Warn(msg string, fields ...zap.Field)
+	Error(msg string, fields ...zap.Field)
+	Fatal(msg string, fields ...zap.Field)
 }
 
-type Entry struct {
-	*logrus.Entry
+type standardLogger struct {
+	zapLogger *zap.Logger
 }
 
-func NewLogger(config *config.Config) *StandardLogger {
-	var prettyLog bool
+func NewLogger(cfg *config.Config) Logger {
+	var zapCfg zap.Config
 
-	if config.Environment.Env == constant.DevelopmentEnv {
-		prettyLog = true
+	if cfg.Environment.Env == constant.DevelopmentEnv {
+		zapCfg = zap.NewDevelopmentConfig()
+		zapCfg.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
+	} else {
+		zapCfg = zap.NewProductionConfig()
+		zapCfg.Level = zap.NewAtomicLevelAt(zap.InfoLevel)
 	}
-	logger := logrus.New()
 
-	logger.SetFormatter(&logrus.JSONFormatter{
-		PrettyPrint: prettyLog,
-	})
+	zapCfg.OutputPaths = []string{"stdout"}
+	logger, _ := zapCfg.Build(zap.AddCallerSkip(1))
 
-	logger.SetOutput(os.Stdout)
+	return &standardLogger{zapLogger: logger}
+}
 
-	if config.Environment.Env == constant.ProductionEnv {
-		logger.SetLevel(logrus.InfoLevel)
+func (l *standardLogger) WithField(key string, value interface{}) Logger {
+	return &standardLogger{zapLogger: l.zapLogger.With(zap.Any(key, value))}
+}
+
+func (l *standardLogger) WithFields(fields map[string]interface{}) Logger {
+	zapFields := make([]zap.Field, 0, len(fields))
+	for k, v := range fields {
+		zapFields = append(zapFields, zap.Any(k, v))
 	}
-	logger.SetReportCaller(true)
-
-	return &StandardLogger{
-		Logger: logger,
-	}
+	return &standardLogger{zapLogger: l.zapLogger.With(zapFields...)}
 }
 
-func NewEntry(entry *logrus.Entry) *Entry {
-	return &Entry{Entry: entry}
+func (l *standardLogger) WithError(err error) Logger {
+	return &standardLogger{zapLogger: l.zapLogger.With(zap.Error(err))}
 }
 
-func (s *Entry) WithField(key string, value interface{}) *Entry {
-	entry := s.Entry.WithField(key, value)
-	return NewEntry(entry)
+func (l *standardLogger) WithErrorStr(errStr string) Logger {
+	return &standardLogger{zapLogger: l.zapLogger.With(zap.Error(errors.New(errStr)))}
 }
 
-func (s *Entry) WithFields(fields logrus.Fields) *Entry {
-	entry := s.Entry.WithFields(fields)
-	return NewEntry(entry)
+func (l *standardLogger) WithContext(ctx context.Context) Logger {
+	return l.WithField("context", ctx)
 }
 
-func (s *Entry) WithError(err error) *Entry {
-	entry := s.Entry.WithError(err)
-	return NewEntry(entry)
+func (l *standardLogger) WithInput(input interface{}) Logger {
+	return l.WithField("input", input)
 }
 
-func (s *Entry) WithErrorStr(errStr string) *Entry {
-	entry := s.Entry.WithError(errors.New(errStr))
-	return NewEntry(entry)
+func (l *standardLogger) WithOutput(output interface{}) Logger {
+	return l.WithField("output", output)
 }
 
-func (s *Entry) WithContext(ctx context.Context) *Entry {
-	entry := s.Entry.WithContext(ctx)
-	return NewEntry(entry)
+func (l *standardLogger) WithResponseTime(responseTime float64) Logger {
+	return &standardLogger{zapLogger: l.zapLogger.With(zap.Int("response_time_ms", int(math.Round(responseTime))))}
 }
 
-func (s *Entry) WithInput(input interface{}) *Entry {
-	entry := s.Entry.WithField("input", input)
-	return NewEntry(entry)
+func (l *standardLogger) WithKeyword(keyword string) Logger {
+	return l.WithField("keyword", keyword)
 }
 
-func (s *Entry) WithOutput(output interface{}) *Entry {
-	entry := s.Entry.WithField("output", output)
-	return NewEntry(entry)
+func (l *standardLogger) WithURL(url string) Logger {
+	return l.WithField("url", url)
 }
 
-func (s *Entry) WithResponseTime(responsetime float64) *Entry {
-	resTime := math.Round(responsetime)
-	fieldTime := "response_time (ms):"
-	entry := s.Entry.WithField(fieldTime, resTime)
-	return NewEntry(entry)
+func (l *standardLogger) WithStatusCode(code int) Logger {
+	return &standardLogger{zapLogger: l.zapLogger.With(zap.Int("status_code", code))}
 }
 
-func (s *Entry) Withkeyword(keyword string) *Entry {
-	entry := s.Entry.WithField("keyword", keyword)
-	return NewEntry(entry)
+func (l *standardLogger) Debug(msg string, fields ...zap.Field) {
+	l.zapLogger.Debug(msg, fields...)
 }
 
-func (s *Entry) WithURL(url string) *Entry {
-	entry := s.Entry.WithField("url", url)
-	return NewEntry(entry)
+func (l *standardLogger) Info(msg string, fields ...zap.Field) {
+	l.zapLogger.Info(msg, fields...)
 }
 
-func (s *Entry) WithStatusCode(code int) *Entry {
-	entry := s.Entry.WithField("status_code", code)
-	return NewEntry(entry)
+func (l *standardLogger) Warn(msg string, fields ...zap.Field) {
+	l.zapLogger.Warn(msg, fields...)
 }
 
-func (s *StandardLogger) WithFields(fields logrus.Fields) *Entry {
-	entry := s.Logger.WithFields(fields)
-	return NewEntry(entry)
+func (l *standardLogger) Error(msg string, fields ...zap.Field) {
+	l.zapLogger.Error(msg, fields...)
 }
 
-func (s *StandardLogger) WithError(err error) *Entry {
-	entry := s.Logger.WithError(err)
-	return NewEntry(entry)
-}
-
-func (s *StandardLogger) WithErrorStr(errStr string) *Entry {
-	entry := s.Logger.WithError(errors.New(errStr))
-	return NewEntry(entry)
-}
-
-func (s *StandardLogger) WithField(key string, value interface{}) *Entry {
-	entry := s.Logger.WithField(key, value)
-	return NewEntry(entry)
-}
-
-func (s *StandardLogger) WithInput(input interface{}) *Entry {
-	entry := s.Logger.WithField("input", input)
-	return NewEntry(entry)
-}
-
-func (s *StandardLogger) WithResponseTime(responseTime float64) *Entry {
-	fieldTime := "ResponseTime"
-	entry := s.Logger.WithField(fieldTime, math.Round(responseTime))
-	return NewEntry(entry)
-}
-
-func (s *StandardLogger) WithOutput(output interface{}) *Entry {
-	entry := s.Logger.WithField("output", output)
-	return NewEntry(entry)
+func (l *standardLogger) Fatal(msg string, fields ...zap.Field) {
+	l.zapLogger.Fatal(msg, fields...)
 }

@@ -1,11 +1,10 @@
-package external
+package kakfa
 
 import (
 	"context"
 	"crypto/tls"
 	"etl-pipeline/config"
 	"etl-pipeline/internal/processor"
-	"etl-pipeline/internal/service"
 	"etl-pipeline/pkg/logger"
 	"strings"
 	"time"
@@ -18,8 +17,16 @@ import (
 type Consumer struct {
 	reader    *kafka.Reader
 	processor processor.Processor
-	logger    *logger.StandardLogger
-	pool      service.Pool
+	logger    logger.Logger
+	pool      Pool
+}
+
+type ConsumerParams struct {
+	fx.In
+	config    *config.Config
+	processor processor.Processor
+	logger    logger.Logger
+	pool      Pool
 }
 
 func createSecureDialer(config *config.Config) (*kafka.Dialer, error) {
@@ -35,22 +42,22 @@ func createSecureDialer(config *config.Config) (*kafka.Dialer, error) {
 	}, nil
 }
 
-func NewKafkaConsumer(config *config.Config, processor processor.Processor, logger *logger.StandardLogger, pool service.Pool) (*Consumer, error) {
-	dialer, err := createSecureDialer(config)
+func NewKafkaConsumer(p *ConsumerParams) (*Consumer, error) {
+	dialer, err := createSecureDialer(p.config)
 	if err != nil {
 		return nil, err
 	}
 
-	conn, err := dialer.DialContext(context.Background(), "tcp", config.Kafka.Brokers[0])
+	conn, err := dialer.DialContext(context.Background(), "tcp", p.config.Kafka.Brokers[0])
 	if err != nil {
 		return nil, err
 	}
 	defer conn.Close()
 
 	reader := kafka.NewReader(kafka.ReaderConfig{
-		Brokers:         config.Kafka.Brokers,
-		GroupID:         config.Kafka.GroupID,
-		GroupTopics:     config.Kafka.Topics,
+		Brokers:         p.config.Kafka.Brokers,
+		GroupID:         p.config.Kafka.GroupID,
+		GroupTopics:     p.config.Kafka.Topics,
 		MinBytes:        10e3, // 10KB
 		MaxBytes:        10e6,
 		StartOffset:     kafka.LastOffset,
@@ -62,18 +69,16 @@ func NewKafkaConsumer(config *config.Config, processor processor.Processor, logg
 		MaxAttempts:     3,
 	})
 
-	logger.Info()
 	return &Consumer{
 		reader:    reader,
-		processor: processor,
-		logger:    logger,
-		pool:      pool,
+		processor: p.processor,
+		logger:    p.logger,
+		pool:      p.pool,
 	}, nil
 }
 
 func (c *Consumer) processMessage(msg kafka.Message) {
-	c.logger.Printf("Processing message from topic=%s",
-		msg.Topic)
+	c.logger.Info("Processing message from topic=" + msg.Topic)
 	c.processor.Process(msg.Value, msg.Topic, msg.Key)
 }
 
@@ -88,7 +93,7 @@ func (c *Consumer) readMessages(ctx context.Context) {
 				time.Sleep(time.Second)
 				continue
 			}
-			c.logger.Printf("Error reading message: %v", err)
+			c.logger.Error("Error reading message: " + err.Error())
 			continue
 		}
 
