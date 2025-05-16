@@ -17,7 +17,5 @@ func main() {
 		app.Module,
 		logger.Module,
 		kakfa.Module,
-
-		fx.Invoke(kakfa.RunConsumer),
 	).Run()
 }
