@@ -26,11 +26,16 @@ type DBConfig struct {
 }
 
 type KafkaConfig struct {
-	Brokers  []string `envconfig:"KAFKA_BROKERS" required:"true"`
-	GroupID  string   `envconfig:"KAFKA_GROUP_ID" required:"true"`
-	Topics   []string `envconfig:"KAFKA_TOPICS" required:"true"`
-	User     string   `envconfig:"KAFKA_USER" required:"true"`
-	Password string   `envconfig:"KAFKA_PASSWORD" required:"true"`
+	Brokers         []string `envconfig:"KAFKA_BROKERS" required:"true"`
+	GroupID         string   `envconfig:"KAFKA_GROUP_ID" required:"true"`
+	Topics          []string `envconfig:"KAFKA_TOPICS" required:"true"`
+	User            string   `envconfig:"KAFKA_USER" required:"true"`
+	Password        string   `envconfig:"KAFKA_PASSWORD" required:"true"`
+	MaxAttempts     int      `envconfig:"KAFKA_MAX_ATTEMPTS" default:"3"`
+	DLQTopic        string   `envconfig:"KAFKA_DLQ_TOPIC" required:"true"`
+	DLQBrokers      []string `envconfig:"KAFKA_DLQ_BROKERS" required:"true"`
+	CommitBatchSize int      `envconfig:"KAFKA_COMMIT_BATCH_SIZE" default:"100"`
+	CommitInterval  int      `envconfig:"KAFKA_COMMIT_INTERVAL" default:"5"`
 }
 
 type EnvironmentConfig struct {

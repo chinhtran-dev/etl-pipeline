@@ -1,4 +1,4 @@
-.PHONY: swagger-init swagger-build build run test install-tools lint format init clean help
+.PHONY: swagger-init swagger-build build run test install-tools lint format init clean help run-main
 
 MOCK_OUTPUT_DIR=internal/mock
 MOCK_CASE=snake
@@ -16,7 +16,8 @@ help:
 	@echo "  lint             - Lint code"
 	@echo "  generate-mocks   - Generate mocks"
 	@echo "  clean            - Clean build artifacts"
-
+	@echo "  run-main         - Run the main application"
+	
 install-tools:
 	@echo "Installing required tools..."
 	@go install github.com/swaggo/swag/cmd/swag@latest
@@ -56,3 +57,6 @@ generate-mocks:
 
 clean:
 	rm -rf bin/
+
+run-main:
+	go run cmd/app/main.go

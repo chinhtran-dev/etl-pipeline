@@ -1,4 +1,4 @@
-package kakfa
+package kafka
 
 import (
 	"go.uber.org/fx"
@@ -6,7 +6,8 @@ import (
 
 var Module = fx.Options(
 	fx.Provide(NewPool),
-	fx.Provide(NewKafkaConsumer),
-
-	fx.Invoke(RunConsumer),
+	fx.Provide(NewKafkaReader),
+	fx.Provide(NewKafkaWriter),
+	fx.Invoke(RunReader),
+	fx.Invoke(RunWriter),
 )
