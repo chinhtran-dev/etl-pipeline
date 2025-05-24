@@ -11,21 +11,21 @@ import (
 )
 
 type Processor interface {
-	Process(data []byte, topic string, key []byte) error
+	Process(data []byte) error
 }
 
 type processor struct {
 	Logger    logger.Logger
-	Extract   extract.Extract
-	Transform transform.Transform
+	Extract   extract.HonoExtractor
+	Transform transform.HonoTransformer
 	Load      load.Loader
 }
 
 type ProcessorParams struct {
 	fx.In
 	Logger    logger.Logger
-	Extract   extract.Extract
-	Transform transform.Transform
+	Extract   extract.HonoExtractor
+	Transform transform.HonoTransformer
 	Load      load.Loader
 }
 
@@ -38,29 +38,28 @@ func NewProcessor(params ProcessorParams) Processor {
 	}
 }
 
-func (p *processor) Process(data []byte, topic string, key []byte) error {
-	tenantID, err := p.Extract.ExtractTenantId(topic)
+func (p *processor) Process(data []byte) error {
+	identity, value, timestamp, err := p.Extract.Extracter(data)
 	if err != nil {
-		p.Logger.Error("Failed to extract")
+		p.Logger.Error("Failed to extract", zap.Error(err))
+		return err
 	}
 
-	deviceID := p.Extract.ExtractDeviceId(key)
-
-	timestamp, transformedData, err := p.Transform.Transform(data)
+	transformedData, err := p.Transform.HonoTransform(value)
 	if err != nil {
 		p.Logger.Error("Failed to transform data",
 			zap.Error(err),
-			zap.String("tenantID", tenantID),
-			zap.String("deviceID", deviceID))
+			zap.String("tenantID", identity.TenantId),
+			zap.String("deviceID", identity.DeviceId))
 		return err
 	}
 
 	p.Logger.Info("Processing message",
 		zap.Any("transformedData", transformedData),
-		zap.String("tenantID", tenantID),
-		zap.String("deviceID", deviceID))
+		zap.String("tenantID", identity.TenantId),
+		zap.String("deviceID", identity.DeviceId))
 
-	err = p.Load.Load(tenantID, deviceID, timestamp, transformedData)
+	err = p.Load.Load(identity.TenantId, identity.DeviceId, timestamp, transformedData)
 	if err != nil {
 		p.Logger.Error("Error load data",
 			zap.Any("error", err))
@@ -68,8 +67,8 @@ func (p *processor) Process(data []byte, topic string, key []byte) error {
 	}
 
 	p.Logger.Info("Message inserted",
-		zap.String("tenantID", tenantID),
-		zap.String("deviceID", deviceID))
+		zap.String("tenantID", identity.TenantId),
+		zap.String("deviceID", identity.DeviceId))
 
 	return nil
 }

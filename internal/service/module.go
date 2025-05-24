@@ -9,7 +9,7 @@ import (
 )
 
 var Module = fx.Options(
-	fx.Provide(extract.NewExtract),
-	fx.Provide(transform.NewTransform),
+	fx.Provide(extract.NewHonoExtractor),
+	fx.Provide(transform.NewHonoTransformer),
 	fx.Provide(load.NewLoad),
 )

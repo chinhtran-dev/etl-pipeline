@@ -48,6 +48,13 @@ func NewKafkaReader(p ReaderParams) Reader {
 		p.Logger.Fatal("failed to create secure dialer", zap.Error(err))
 	}
 
+	conn, err := dialer.DialLeader(context.Background(), "tcp", p.Config.Kafka.Brokers[0], p.Config.Kafka.Topics[0], 0)
+	if err != nil {
+		p.Logger.Fatal("failed to dial leader", zap.Error(err))
+	}
+
+	conn.Close()
+
 	reader := kafka.NewReader(kafka.ReaderConfig{
 		Brokers:         p.Config.Kafka.Brokers,
 		GroupID:         p.Config.Kafka.GroupID,
@@ -223,7 +230,7 @@ func (r *kafkaReader) commitMessages(ctx context.Context, msgs []kafka.Message) 
 func (r *kafkaReader) retryProcess(msg kafka.Message, maxAttempts int) error {
 	var err error
 	for i := 0; i < maxAttempts; i++ {
-		err = r.processor.Process(msg.Value, msg.Topic, msg.Key)
+		err = r.processor.Process(msg.Value)
 		if err == nil {
 			return nil
 		}
