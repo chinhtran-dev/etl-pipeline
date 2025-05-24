@@ -230,7 +230,7 @@ func (r *kafkaReader) commitMessages(ctx context.Context, msgs []kafka.Message) 
 func (r *kafkaReader) retryProcess(msg kafka.Message, maxAttempts int) error {
 	var err error
 	for i := 0; i < maxAttempts; i++ {
-		err = r.processor.Process(msg.Value)
+		err = r.processor.Process(msg)
 		if err == nil {
 			return nil
 		}

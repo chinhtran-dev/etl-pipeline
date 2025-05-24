@@ -6,12 +6,13 @@ import (
 	"etl-pipeline/internal/service/transform"
 	"etl-pipeline/pkg/logger"
 
+	"github.com/segmentio/kafka-go"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
 )
 
 type Processor interface {
-	Process(data []byte) error
+	Process(msg kafka.Message) error
 }
 
 type processor struct {
@@ -38,11 +39,15 @@ func NewProcessor(params ProcessorParams) Processor {
 	}
 }
 
-func (p *processor) Process(data []byte) error {
-	identity, value, timestamp, err := p.Extract.Extracter(data)
+func (p *processor) Process(msg kafka.Message) error {
+	identity, value, timestamp, err := p.Extract.Extracter(msg)
 	if err != nil {
 		p.Logger.Error("Failed to extract", zap.Error(err))
 		return err
+	}
+
+	if value == nil {
+		return nil
 	}
 
 	transformedData, err := p.Transform.HonoTransform(value)
